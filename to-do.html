@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vanilla JS To-Do List</title>
+    
+    <style>
+        /* --- 1. 기본 및 레이아웃 설정 --- */
+        :root {
+            --color-primary: #007bff;
+            --color-danger: #dc3545;
+            --color-high: #ff4d4d;
+            --color-medium: #ffab4d;
+            --color-low: #4da6ff;
+            --color-bg: #f4f7f6;
+            --color-card-bg: #ffffff;
+            --color-text: #333;
+            --color-text-secondary: #777;
+            --border-color: #e0e0e0;
+            --shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+        }
+
+        /* 중앙 컨테이너 */
+        .container {
+            max-width: 700px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: var(--color-card-bg);
+            border-radius: 10px;
+            box-shadow: var(--shadow);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--color-primary);
+            margin-bottom: 1.5rem;
+        }
+
+        /* --- 2. 폼 스타일 (할 일 추가) --- */
+        #todo-form {
+            display: grid;
+            grid-template-columns: 1fr; /* 모바일 기본 1단 */
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        /* 데스크탑 (600px 이상)에서는 2단 그리드 적용 */
+        @media (min-width: 600px) {
+            #todo-form {
+                grid-template-columns: repeat(2, 1fr); /* 2단 */
+                gap: 1rem;
+            }
+            /* 텍스트 입력과 추가 버튼은 2칸 모두 사용 */
+            #new-todo-text {
+                grid-column: 1 / -1;
+            }
+            #add-todo-btn {
+                grid-column: 1 / -1;
+            }
+        }
+        
+        #todo-form input,
+        #todo-form select,
+        #todo-form button {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #todo-form input:focus,
+        #todo-form select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        #add-todo-btn {
+            background-color: var(--color-primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        #add-todo-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* --- 3. 할 일 목록 스타일 --- */
+        #todo-list {
+            list-style: none;
+        }
+
+        .todo-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background-color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            margin-bottom: 0.75rem;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+            word-break: break-all; /* 긴 텍스트 줄바꿈 */
+        }
+
+        .todo-item:hover {
+            transform: translateY(-2px);
+        }
+
+        .todo-item-content {
+            flex-grow: 1; /* 삭제 버튼을 제외한 영역 모두 차지 */
+        }
+
+        .todo-item-content p {
+            margin: 0;
+            font-size: 1.1rem;
+            word-break: break-word;
+        }
+
+        /* 마감일, 우선순위 메타 정보 */
+        .todo-item-meta {
+            display: flex;
+            flex-wrap: wrap; /* 모바일에서 줄바꿈 */
+            gap: 1rem;
+            align-items: center;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* 우선순위 태그 */
+        .priority-tag {
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            font-weight: bold;
+            color: white;
+            font-size: 0.8rem;
+        }
+        
+        /* 우선순위별 태그 색상 */
+        .priority-high { background-color: var(--color-high); }
+        .priority-medium { background-color: var(--color-medium); }
+        .priority-low { background-color: var(--color-low); }
+
+        /* 삭제 버튼 */
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--color-danger);
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0.5rem;
+            margin-left: 1rem;
+            transition: color 0.2s, transform 0.2s;
+        }
+
+        .delete-btn:hover {
+            color: #a71d2a;
+            transform: scale(1.1);
+        }
+
+        /* --- 4. 반응형 디자인 (모바일) --- */
+        @media (max-width: 600px) {
+            body {
+                padding: 0.5rem; /* 모바일 화면 여백 */
+            }
+            .container {
+                width: 100%;
+                margin: 1rem auto;
+                padding: 1.5rem;
+            }
+            
+            /* 모바일에선 폼을 무조건 1단으로 */
+            #todo-form {
+                grid-template-columns: 1fr;
+            }
+            /* 폼 내부 요소들도 1칸씩 차지 */
+            #new-todo-text,
+            #add-todo-btn {
+                grid-column: 1 / 1;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <main class="container">
+        <h1>📝 To-Do List</h1>
+
+        <form id="todo-form">
+            <input type="text" id="new-todo-text" placeholder="새로운 할 일을 입력하세요..." required>
+            
+            <input type="date" id="new-todo-date" required>
+            
+            <select id="new-todo-priority" required>
+                <option value="" disabled selected>우선순위 선택</option>
+                <option value="high">높음</option>
+                <option value="medium">보통</option>
+                <option value="low">낮음</option>
+            </select>
+
+            <button type="submit" id="add-todo-btn">추가하기</button>
+        </form>
+
+        <ul id="todo-list">
+            </ul>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- 1. DOM 요소 선택 ---
+            const todoForm = document.getElementById('todo-form');
+            const todoInput = document.getElementById('new-todo-text');
+            const dateInput = document.getElementById('new-todo-date');
+            const priorityInput = document.getElementById('new-todo-priority');
+            const todoList = document.getElementById('todo-list');
+
+            // --- 2. 상태 관리 (State) ---
+            // 로컬 스토리지에서 할 일 목록을 불러오거나, 없으면 빈 배열로 시작
+            let todos = JSON.parse(localStorage.getItem('todos')) || [];
+
+            // --- 3. 핵심 함수 ---
+
+            /**
+             * 현재 todos 배열의 상태를 로컬 스토리지에 저장합니다.
+             * (데이터 영속성을 위해)
+             */
+            function saveTodos() {
+                localStorage.setItem('todos', JSON.stringify(todos));
+            }
+
+            /**
+             * 우선순위 값(low, medium, high)에 따라 CSS 클래스 이름을 반환합니다.
+             * @param {string} priority - 우선순위 값
+             * @returns {string} CSS 클래스 이름 (예: 'priority-high')
+             */
+            function getPriorityClass(priority) {
+                switch (priority) {
+                    case 'high': return 'priority-high';
+                    case 'medium': return 'priority-medium';
+                    case 'low': return 'priority-low';
+                    default: return 'priority-medium';
+                }
+            }
+            
+            /**
+             * 우선순위 값(low, medium, high)에 따라 한글 텍스트를 반환합니다.
+             * @param {string} priority - 우선순위 값
+             * @returns {string} 한글 우선순위 (예: '높음')
+             */
+            function getPriorityText(priority) {
+                switch (priority) {
+                    case 'high': return '높음';
+                    case 'medium': return '보통';
+                    case 'low': return '낮음';
+                    default: return '보통';
+                }
+            }
+
+            /**
+             * todos 배열을 기반으로 화면에 할 일 목록을 렌더링(그리기)합니다.
+             */
+            function renderTodos() {
+                // 목록 비우기 (중복 렌더링 방지)
+                todoList.innerHTML = '';
+
+                // todos 배열을 순회하며 각 항목을 <li> 요소로 만듦
+                todos.forEach(todo => {
+                    const li = document.createElement('li');
+                    li.className = 'todo-item';
+                    // 데이터 ID를 설정하여 나중에 삭제 시 어떤 항목인지 식별
+                    li.dataset.id = todo.id; 
+
+                    const priorityClass = getPriorityClass(todo.priority);
+                    const priorityText = getPriorityText(todo.priority);
+                    
+                    // 날짜가 입력되지 않았을 경우 '마감일 없음' 표시
+                    const displayDate = todo.date || '마감일 없음';
+
+                    // <li> 요소의 내부 HTML 구조 설정
+                    li.innerHTML = `
+                        <div class="todo-item-content">
+                            <p>${todo.text}</p>
+                            <div class="todo-item-meta">
+                                <span class="due-date">📅 ${displayDate}</span>
+                                <span class="priority-tag ${priorityClass}">${priorityText}</span>
+                            </div>
+                        </div>
+                        <button class="delete-btn" aria-label="할 일 삭제">×</button>
+                    `;
+
+                    // 완성된 <li>를 <ul> 목록에 추가
+                    todoList.appendChild(li);
+                });
+            }
+
+            /**
+             * 새 할 일을 todos 배열에 추가합니다.
+             * @param {string} text - 할 일 내용
+             * @param {string} date - 마감일
+             * @param {string} priority - 우선순위
+             */
+            function addTodo(text, date, priority) {
+                const newTodo = {
+                    id: Date.now(), // 고유 ID로 현재 시간(ms) 사용
+                    text: text,
+                    date: date,
+                    priority: priority
+                };
+                
+                todos.push(newTodo); // 배열에 새 할 일 추가
+                saveTodos(); // 로컬 스토리지에 저장
+                renderTodos(); // 화면 다시 그리기
+            }
+
+            /**
+             * ID를 기준으로 todos 배열에서 할 일을 삭제합니다.
+             * @param {number} id - 삭제할 할 일의 ID
+             */
+            function deleteTodo(id) {
+                // id가 일치하지 않는 항목만 필터링하여 새 배열 생성
+                todos = todos.filter(todo => todo.id !== id);
+                saveTodos(); // 로컬 스토리지에 저장
+                renderTodos(); // 화면 다시 그리기
+            }
+
+            // --- 4. 이벤트 리스너 설정 ---
+
+            /**
+             * 폼 제출(할 일 추가) 이벤트 처리
+             */
+            todoForm.addEventListener('submit', (e) => {
+                e.preventDefault(); // 폼 기본 동작(페이지 새로고침) 방지
+
+                const text = todoInput.value.trim();
+                const date = dateInput.value;
+                const priority = priorityInput.value;
+
+                // 필수 값(텍스트, 우선순위) 확인
+                if (text === '' || priority === '') {
+                    alert('할 일 내용과 우선순위를 모두 입력해주세요.');
+                    return;
+                }
+
+                addTodo(text, date, priority);
+
+                // 폼 입력 필드 초기화
+                todoInput.value = '';
+                dateInput.value = '';
+                priorityInput.value = ''; // '우선순위 선택'으로 리셋
+            });
+
+            /**
+             * 할 일 목록(삭제 버튼) 클릭 이벤트 처리 (이벤트 위임 사용)
+             * 부모 요소(todoList)에 이벤트 리스너를 하나만 등록하여
+             * 동적으로 생성된 자식 요소(삭제 버튼)의 이벤트를 처리합니다.
+             */
+            todoList.addEventListener('click', (e) => {
+                // 클릭된 요소가 'delete-btn' 클래스를 가졌는지 확인
+                if (e.target.classList.contains('delete-btn')) {
+                    
+                    // 클릭된 버튼에서 가장 가까운 .todo-item 부모 요소를 찾음
+                    const li = e.target.closest('.todo-item');
+                    
+                    // 부모 요소의 dataset.id 값을 가져옴 (문자열이므로 숫자로 변환)
+                    const id = Number(li.dataset.id); 
+                    
+                    deleteTodo(id); // 해당 ID의 할 일 삭제
+                }
+            });
+
+            // --- 5. 초기화 ---
+            // 페이지 로드 시 저장된 할 일 목록 렌더링
+            renderTodos();
+        });
+    </script>
+</body>
+</html>
